@@ -1,112 +1,63 @@
-
 use std::sync::mpsc;
-use futures::sync::oneshot;
 use std::time::{Instant, Duration };
-use tokio_core::reactor::Core;
-use hyper::{Client, Uri};
 use std::collections::HashMap;
-use hyper::server::Request;
+use futures::{self, Future, Sink};
+use futures::sync::oneshot;
+use tokio_core::reactor::Core;
+use tokio_core::reactor::Remote;
 use crypto::sha2::Sha256;
 use crypto::digest::Digest;
 use hyper::Method::Post;
+use hyper::server::Request;
 use hyper::header::ContentLength;
-use futures::Future;
+use client::RequestAndClientsFuture;
+use Millis;
 
 const TIME_SLICE_MILLIS: u64 = 200;
 const THREAD_RECV_MILLIS: u64 = 2;
-static URL: &str = "http://163.172.157.16:14732/digest";
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Sha256Hash([u8; 32]);
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Sha256Hash(pub [u8; 32]);
 
-pub fn aggregator_start(rx_digest : mpsc::Receiver<Sha256Hash>, tx_future : mpsc::Sender<oneshot::Receiver<u32>>) {
+pub fn aggregator_start(rx_digest : mpsc::Receiver<Sha256Hash>,
+                        tx_future : mpsc::Sender<oneshot::Receiver<u32>>,
+                        tx_request : mpsc::Sender<RequestAndClientsFuture>,
+) {
     let time_slice_millis: Duration = Duration::from_millis(TIME_SLICE_MILLIS);
     let thread_recv_millis: Duration = Duration::from_millis(THREAD_RECV_MILLIS);
-    let uri : Uri = URL.parse().unwrap();
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
     let mut i: u64 = 0;
     let mut start_cycle: Option<Instant> = None;
-    let mut current_round_hashes = vec!();
-    let mut current_round_senders = vec!();
-    let client = Client::configure().build(&core.handle());
+    let mut current_round_hashes : Vec<Sha256Hash> = Vec::new();
+    let mut current_round_senders : Vec<(Sha256Hash, oneshot::Sender<u32>)> =  Vec::new();
 
+    println!("Started merkle");
     loop {
         if start_cycle.is_some() && start_cycle.unwrap().elapsed() >= time_slice_millis {
             start_cycle = None;
-            println!("Creating Merkle of {}|{} elements", current_round_hashes.len(),current_round_senders.len());
+            let now = Instant::now();
+            println!("Creating Merkle of {} elements", current_round_hashes.len());
 
             // Create merkle tree
             let mut merkle_proofs : HashMap<Sha256Hash, Vec<u8>> = HashMap::new();
             let root = merkle_root_and_paths(&current_round_hashes, &mut merkle_proofs);
-            println!("Root is {:?}", root);
-            let hashes : Vec<Sha256Hash> = current_round_hashes;
-            let mut senders : Vec<oneshot::Sender<u32>> = current_round_senders;
+            println!("Elapsed {}ms, root is {:?}", now.elapsed().as_millis(), root);
+            let mut senders : Vec<(Sha256Hash, oneshot::Sender<u32>)> = current_round_senders;
 
-            //TODO send request
-
-            let mut req = Request::new(Post, uri.clone() );
-            let body = root.0.to_vec();
-            req.headers_mut().set(ContentLength(body.len() as u64));
-            req.set_body(body);
-            //let web_res_future = client.request(req);
-            let work = client.request(req).map(|res| {
-                println!("{:?}",res);
-            }).map_err(|err| {
-                println!("{:?}",err);
-            });
-
-            /*
-            let (tx, rx) = futures::sync::mpsc::channel(0);
-            std::thread::spawn(move || {
-                let mut core = Core::new().unwrap();
-                let handle = core.handle();
-                let client = Client::new(&handle);
-
-                let messages = rx.for_each(|req| {
-                    handle.spawn(client.request(req).and_then(do_something));
-                    Ok(())
-                });
-                core.run(messages).unwrap();
-            });
-
-            // give the `tx` to someone else
-            tx.send(Request::new(Method::Get, uri))`
-            */
-            let now = Instant::now();
-            core.run(work).unwrap();
-            println!("ah {:?} ", now.elapsed() );
-            // spawn future che nel then fa for e tutti i tx_oneshot shotta
-            // ho probabilmente bisogno del future remote? In realtà nonn credo può essere un altro executor qua
-            while let Some(sender) = senders.pop() {
-                sender.send(0).unwrap();
-            }
+            tx_request.send(RequestAndClientsFuture::new(root, merkle_proofs, senders));
+            println!("Sent!");
 
             current_round_hashes = vec!();
             current_round_senders = vec!();
-
-
-            //SEND RESULTS & clear map
-
-            /*let mut keys: Vec<Sha256Hash> = vec!();  // this should be a oneliner
-            for key in current_round.keys() {
-                keys.push(Sha256Hash(key.0));
-            }
-            for key in keys {
-                let tx_oneshot = current_round.remove(&key).unwrap();
-                tx_oneshot.send(0);
-            }*/
-
         }
 
-        if let Ok(result) = rx_digest.recv_timeout(thread_recv_millis) {   //TODO should be a future timeout?
+        if let Ok(result) = rx_digest.recv_timeout(thread_recv_millis) {   //TODO suboptimal, should be a future timeout?
             if start_cycle.is_none() {
                 start_cycle = Some(Instant::now());
             }
             let (tx_oneshot, rx_oneshot) = oneshot::channel();
             tx_future.send(rx_oneshot).unwrap();
-            current_round_hashes.push(result);
-            current_round_senders.push(tx_oneshot);
+            current_round_hashes.push(result.clone());
+            current_round_senders.push((result,tx_oneshot));
             // println!("{:?}", rx_oneshot);
         }
         i = i + 1;

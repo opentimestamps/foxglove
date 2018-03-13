@@ -3,12 +3,14 @@ extern crate tokio;
 extern crate tokio_core;
 extern crate hyper;
 extern crate crypto;
+extern crate rand;
 
 use std::time::Duration;
 
 pub mod client;
 pub mod server;
 pub mod merkle;
+
 
 pub trait Millis {
     fn as_millis(&self) -> f64;

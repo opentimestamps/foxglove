@@ -14,7 +14,6 @@ use tokio_core::reactor::{Remote, Handle};
 use futures::sync::mpsc::UnboundedSender;
 use futures::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Instant, Duration };
-use aggregator::FutureSender;
 use futures::Sink;
 use futures::Stream;
 const PHRASE: &'static str = "Hello, World!";

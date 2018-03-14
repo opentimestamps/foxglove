@@ -1,4 +1,4 @@
-extern crate aggregator;
+extern crate ost_aggregator;
 extern crate hyper;
 extern crate futures;
 extern crate rand;

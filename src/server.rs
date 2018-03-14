@@ -1,26 +1,22 @@
 use std::sync::{mpsc, Arc};
 use futures::sync::oneshot;
 use hyper;
-use hyper::server::{Http, Request, Response, Service};
+use hyper::server::{Request, Response, Service};
 use rand::{self, Rng};
 use merkle::{Sha256Hash, sha256};
-use tokio_core::reactor::{Core, Handle};
 use futures::Future;
 use hyper::header::ContentLength;
-use tokio_core::reactor::Remote;
-
 
 pub struct AggregatorServerData {
     tx_digest : mpsc::Sender<Sha256Hash>,
-    handle: Handle,
-    rx_future: Arc<mpsc::Receiver<oneshot::Receiver<u32>>>,
+    rx_future: Arc<mpsc::Receiver<oneshot::Receiver<Vec<u8>>>>,
 }
 
 impl AggregatorServerData {
-    pub fn new(tx_digest : mpsc::Sender<Sha256Hash>, handle : Handle, rx_future: Arc<mpsc::Receiver<oneshot::Receiver<u32>>>) -> AggregatorServerData {
+    pub fn new(tx_digest : mpsc::Sender<Sha256Hash>,
+               rx_future: Arc<mpsc::Receiver<oneshot::Receiver<Vec<u8>>>>) -> AggregatorServerData {
         AggregatorServerData {
             tx_digest,
-            handle,
             rx_future,
         }
     }
@@ -32,8 +28,10 @@ impl Service for AggregatorServerData {
     type Error = hyper::Error;
     type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
 
-    fn call(&self, req: Request) -> Self::Future {
-        let digest = get_digest(req);
+    fn call(&self, _req: Request) -> Self::Future {
+        //println!("Request {:?}", req);
+
+        let digest = get_random_digest();
 
         self.tx_digest.send(digest).unwrap();
 
@@ -43,7 +41,7 @@ impl Service for AggregatorServerData {
         Box::new(
             result_receiver.map(|res| {
                 //println!("result_receiver.map:{:?}",res);
-                let res = format!("{}",res);
+                let res = format!("{:?}",res);
                 Response::new()
                     .with_header(ContentLength(res.len() as u64))
                     .with_body(res)
@@ -53,9 +51,15 @@ impl Service for AggregatorServerData {
     }
 }
 
-fn get_digest(_req: Request) -> Sha256Hash {
+/// this return a random digest, apparently, reading the body in a blocking way, even aware
+/// of the shit perfomance is impossible to do
+fn get_random_digest() -> Sha256Hash {
     let mut rng = rand::thread_rng();
     let mut bytes=[0u8;44];
     rng.fill_bytes(&mut bytes);
-    sha256(&bytes)
+    let hash = sha256(&bytes);
+    //println!("digest received {} which hashed is {}", HEXLOWER.encode(&bytes), hash);
+    hash
 }
+
+

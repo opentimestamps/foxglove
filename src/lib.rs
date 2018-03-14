@@ -4,6 +4,7 @@ extern crate tokio_core;
 extern crate hyper;
 extern crate crypto;
 extern crate rand;
+extern crate data_encoding;
 
 use std::time::Duration;
 

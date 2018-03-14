@@ -1,5 +1,5 @@
 [package]
-name = "aggregator"
+name = "ots-aggregator"
 version = "0.1.0"
 authors = ["Riccardo Casatta <riccardo.casatta@gmail.com>"]
 
@@ -10,3 +10,4 @@ tokio = "0.1"
 tokio-core = "0.1"
 rand = "0.4.2"
 rust-crypto = "~0.2"
+data-encoding = "2.1.1"

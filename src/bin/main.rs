@@ -1,4 +1,4 @@
-extern crate aggregator;
+extern crate ots_aggregator;
 extern crate hyper;
 extern crate futures;
 extern crate rand;
@@ -9,13 +9,11 @@ use std::thread;
 use std::sync::{mpsc, Arc};
 use futures::Stream;
 use futures::future::Future;
-use futures::sync::oneshot;
-use hyper::header::ContentLength;
-use hyper::server::{Http, Request, Response, Service};
-use tokio_core::reactor::{Core, Handle};
-use aggregator::merkle::{self, Sha256Hash};
-use aggregator::server::AggregatorServerData;
-use aggregator::client;
+use hyper::server::Http;
+use tokio_core::reactor::Core;
+use ots_aggregator::merkle;
+use ots_aggregator::server::AggregatorServerData;
+use ots_aggregator::client;
 
 fn main() {
 
@@ -34,17 +32,16 @@ fn main() {
     // SERVER
     let addr = "127.0.0.1:3000".parse().unwrap();
     let tx_digest_2 = tx_digest.clone();
-    let handle_2 = handle.clone();
     let arc_rx_future = Arc::new(rx_future);
     let server = Http::new().serve_addr_handle(&addr, &handle,move || Ok(
-        AggregatorServerData::new(tx_digest_2.clone(), handle_2.clone(), arc_rx_future.clone())
+        AggregatorServerData::new(tx_digest_2.clone(), arc_rx_future.clone())
     )).unwrap();
-    let handle_3 = handle.clone();
+    let handle_2 = handle.clone();
     handle.spawn(server.for_each(move |conn| {
-        handle_3.spawn(conn.map(|_| ()).map_err(|err| println!("serve error: {:?}", err)));
+        handle_2.spawn(conn.map(|_| ()).map_err(|err| println!("serve error: {:?}", err)));
         Ok(())
     }).map_err(|_| ()));
-
+    println!("Started server");
 
     // MERKLE
     thread::spawn(move || {

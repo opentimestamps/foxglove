@@ -13,7 +13,6 @@ fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
-
     let future = future::ok::<(),()>(());
     let (tx, rx) = mpsc::channel();
     tx.send(future);

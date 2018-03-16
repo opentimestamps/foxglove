@@ -1,65 +1,92 @@
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use futures::sync::oneshot;
 use hyper;
 use hyper::server::{Request, Response, Service};
-use rand::{self, Rng};
 use merkle::{Sha256Hash, sha256};
-use futures::Future;
-use hyper::header::ContentLength;
+use futures::{self, Stream, Future};
+use hyper::{Post, StatusCode};
+use std::sync::Mutex;
+use futures::sync::oneshot::Sender;
 
-pub struct AggregatorServerData {
-    tx_digest : mpsc::Sender<Sha256Hash>,
-    rx_future: Arc<mpsc::Receiver<oneshot::Receiver<Vec<u8>>>>,
+pub struct Aggregator {
+    // could be Rc<RefCell<...> at the moment, but what about the new multithreaded eventloop?
+    pub requests_to_serve : Arc<Mutex<RequestsToServe>>,
 }
 
-impl AggregatorServerData {
-    pub fn new(tx_digest : mpsc::Sender<Sha256Hash>,
-               rx_future: Arc<mpsc::Receiver<oneshot::Receiver<Vec<u8>>>>) -> AggregatorServerData {
-        AggregatorServerData {
-            tx_digest,
-            rx_future,
+pub struct RequestsToServe {
+    requests : Vec<RequestToServe>,
+}
+
+pub struct RequestToServe {
+    pub digest_sha256: Sha256Hash,
+    pub sender: Sender<Vec<u8>>,
+}
+
+impl RequestToServe {
+    fn new(digest_sha256: Sha256Hash, sender: Sender<Vec<u8>>) -> RequestToServe {
+        RequestToServe {
+            digest_sha256,
+            sender,
         }
     }
 }
 
-impl Service for AggregatorServerData {
+impl RequestsToServe {
+    pub fn push(&mut self, request_to_serve : RequestToServe) {
+        self.requests.push(request_to_serve);
+    }
+    pub fn len(&self) -> usize {
+        self.requests.len()
+    }
+    pub fn pop(&mut self) -> Option<RequestToServe> {
+        self.requests.pop()
+    }
+}
+
+impl Default for RequestsToServe {
+    fn default() -> RequestsToServe {
+        RequestsToServe {
+            requests : Vec::new(),
+        }
+    }
+}
+
+impl Service for Aggregator {
     type Request = Request;
     type Response = Response;
     type Error = hyper::Error;
     type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
 
-    fn call(&self, _req: Request) -> Self::Future {
-        //println!("Request {:?}", req);
+    fn call(&self, req: Request) -> Self::Future {
+        match (req.method(), req.path()) {
+            (&Post, "/digest") => {
+                let mut requests_to_serve_cloned = self.requests_to_serve.clone();
+                let (sender, receiver) = oneshot::channel();
+                let future = req.body()
+                    .concat2()
+                    .and_then(move |chunk| {
+                        let digest = chunk.iter()
+                            .cloned()
+                            .collect::<Vec<u8>>();
+                        let digest_sha256 = sha256(&digest);
+                        let mut requests_to_serve = requests_to_serve_cloned.lock().unwrap();
+                        requests_to_serve.push(RequestToServe::new(digest_sha256, sender));
+                        Ok(())
+                    })
+                    .join(receiver.map_err(|_| hyper::Error::Incomplete))
+                    .map(|result| {
+                        Response::new().with_body(result.1.to_vec())
+                    }).map_err(|_| hyper::Error::Incomplete);
 
-        let digest = get_random_digest();
-
-        self.tx_digest.send(digest).unwrap();
-
-        let result_receiver = self.rx_future.recv().unwrap();
-        //println!("result_receiver:{:?}",result_receiver);
-
-        Box::new(
-            result_receiver.map(|res| {
-                //println!("result_receiver.map:{:?}",res);
-                let res = format!("{:?}",res);
-                Response::new()
-                    .with_header(ContentLength(res.len() as u64))
-                    .with_body(res)
-
-            }).map_err(|_| hyper::Error::Incomplete)
-        )
+                Box::new(future)
+            },
+            _ => {
+                Box::new(futures::future::ok(
+                    Response::new().with_status(StatusCode::NotFound)
+                ))
+            },
+        }
     }
-}
-
-/// this return a random digest, apparently, reading the body in a blocking way, even aware
-/// of the shit perfomance is impossible to do
-fn get_random_digest() -> Sha256Hash {
-    let mut rng = rand::thread_rng();
-    let mut bytes=[0u8;44];
-    rng.fill_bytes(&mut bytes);
-    let hash = sha256(&bytes);
-    //println!("digest received {} which hashed is {}", HEXLOWER.encode(&bytes), hash);
-    hash
 }
 
 

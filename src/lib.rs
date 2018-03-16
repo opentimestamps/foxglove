@@ -8,10 +8,8 @@ extern crate data_encoding;
 
 use std::time::Duration;
 
-pub mod client;
 pub mod server;
 pub mod merkle;
-
 
 pub trait Millis {
     fn as_millis(&self) -> f64;

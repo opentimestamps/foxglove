@@ -1,17 +1,11 @@
-use std::sync::mpsc;
-use std::time::{Instant, Duration };
+use std::time::Instant;
 use std::collections::HashMap;
-use futures::sync::oneshot;
 use crypto::sha2::Sha256;
 use crypto::digest::Digest;
-use client::RequestAndClientsFuture;
 use Millis;
 use data_encoding::HEXLOWER;
 use std::fmt::Formatter;
 use std::fmt;
-
-const TIME_SLICE_MILLIS: u64 = 1000;
-const THREAD_RECV_MILLIS: u64 = 2;
 
 pub const SHA256_TAG : u8 = 0x08;
 pub const APPEND_TAG : u8 = 0xf0;
@@ -27,51 +21,13 @@ impl fmt::Display for Sha256Hash {
     }
 }
 
-
-pub fn aggregator_start(rx_digest : mpsc::Receiver<Sha256Hash>,
-                        tx_future : mpsc::Sender<oneshot::Receiver<Vec<u8>>>,
-                        tx_request : mpsc::Sender<RequestAndClientsFuture>,
-) {
-    let time_slice_millis: Duration = Duration::from_millis(TIME_SLICE_MILLIS);
-    let thread_recv_millis: Duration = Duration::from_millis(THREAD_RECV_MILLIS);
-    let mut i: u64 = 0;
-    let mut start_cycle: Option<Instant> = None;
-    let mut current_round_hashes : Vec<Sha256Hash> = Vec::new();
-    let mut current_round_senders : Vec<(Sha256Hash, oneshot::Sender<Vec<u8>>)> =  Vec::new();
-
-    println!("Started merkle thread");
-    loop {
-        if start_cycle.is_some() && start_cycle.unwrap().elapsed() >= time_slice_millis {
-            start_cycle = None;
-            let now = Instant::now();
-            let elements = current_round_hashes.len();
-
-            // Create merkle tree
-            let mut merkle_proofs : HashMap<Sha256Hash, Vec<u8>> = HashMap::new();
-            let root = merkle_root_and_paths(&current_round_hashes, &mut merkle_proofs);
-            println!("merkle of #{} elapsed {:.3}ms, root {}", elements, now.elapsed().as_millis(), root);
-            tx_request.send(RequestAndClientsFuture::new(root, merkle_proofs, current_round_senders)).unwrap();
-
-            current_round_hashes = vec!();
-            current_round_senders = vec!();
-        }
-
-        if let Ok(result) = rx_digest.recv_timeout(thread_recv_millis) {   //TODO suboptimal, should be a future timeout?
-            if start_cycle.is_none() {
-                start_cycle = Some(Instant::now());
-            }
-            let (tx_oneshot, rx_oneshot) = oneshot::channel();
-            tx_future.send(rx_oneshot).unwrap();
-            current_round_hashes.push(result.clone());
-            current_round_senders.push((result,tx_oneshot));
-            // println!("{:?}", rx_oneshot);
-        }
-        i = i + 1;
-
-    }
+pub fn make(digests_sha256 : &[Sha256Hash]) -> (Sha256Hash, HashMap<Sha256Hash, Vec<u8>>) {
+    let now = Instant::now();
+    let mut merkle_proofs : HashMap<Sha256Hash, Vec<u8>> = HashMap::new();
+    let root = merkle_root_and_paths(digests_sha256, &mut merkle_proofs);
+    println!("merkle of #{} elapsed {:.3}ms, root {}", digests_sha256.len(), now.elapsed().as_millis(), root);
+    (root, merkle_proofs)
 }
-
-
 
 pub fn merkle_root_and_paths(hash_list: &[Sha256Hash], merkle_proofs : &mut HashMap<Sha256Hash,Vec<u8>>) -> Sha256Hash {
     let sha256_tag = vec![SHA256_TAG];

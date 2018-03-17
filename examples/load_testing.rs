@@ -35,8 +35,7 @@ fn start( cal : String) -> Result<(),()> {
     let mut bytes = [0u8;44];
     let mut rng = rand::thread_rng();
 
-
-    for i in 0..1000 {
+    for i in 0..100 {
         let mut req : Request = Request::new(Method::Post, uri.clone());
         rng.fill_bytes(&mut bytes);
         req.headers_mut().set(ContentType::octet_stream());
@@ -49,13 +48,10 @@ fn start( cal : String) -> Result<(),()> {
             })
             .map(|_res| ())
             .map_err(|_| ());
-        if i%1000==0 {
-            println!("{}",i);
-        }
 
         handle.spawn(post);
     }
-    println!("here");
+
     core.run(futures::future::empty::<(), ()>()).unwrap();
 
     Ok(())

@@ -45,7 +45,7 @@ fn main() {
                 .short("c")
                 .long("calendar")
                 .takes_value(true)
-                .help("Address of the calendar server")
+                .help("Address of the calendar server (default: http://httpbin.org/post)")
         )
         .arg(
             Arg::with_name("time-slice")
@@ -64,7 +64,7 @@ fn main() {
         .get_matches();
 
     let addr = matches.value_of("bind").unwrap_or("127.0.0.1:1337").parse::<SocketAddr>().expect("Invalid bind address");
-    let calendar = matches.value_of("calendar").expect("Address of the back-end calendar is mandatory, specify it with --calendar");
+    let calendar = matches.value_of("calendar").unwrap_or("http://httpbin.org/post");
     let time_slice = matches.value_of("time-slice").unwrap_or("100").parse().unwrap_or(100u64);
 
     println!("Starting on {:?}, using backend calendar at {} with a time slice of {}ms", addr, calendar, time_slice);

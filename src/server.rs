@@ -73,7 +73,7 @@ impl Service for Aggregator {
                         requests_to_serve.push(RequestToServe::new(digest_sha256, sender));
                         Ok(())
                     })
-                    .join(receiver.map_err(|_| hyper::Error::Incomplete))
+                    .join(receiver.map_err(|e| { println!("{:?}",e); hyper::Error::Incomplete }))
                     .map(|result| {
                         Response::new().with_body(result.1.to_vec())
                     }).map_err(|_| hyper::Error::Incomplete);

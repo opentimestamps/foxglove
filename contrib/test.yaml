@@ -1,0 +1,17 @@
+config:
+  target: 'http://localhost:1337'
+  phases:
+    - duration: 60
+      arrivalRate: 200
+  http:
+    pool: 100
+#  defaults:
+#    headers:
+#      x-my-service-auth: '987401838271002188298567'
+scenarios:
+  - flow:
+    - loop:
+      - post:
+          url: "/digest"
+          body: "abc"
+        count: 10

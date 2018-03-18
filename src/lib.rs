@@ -5,11 +5,16 @@ extern crate hyper;
 extern crate crypto;
 extern crate rand;
 extern crate data_encoding;
+extern crate env_logger;
+
+#[macro_use]
+extern crate log;
 
 use std::time::Duration;
 
 pub mod server;
 pub mod merkle;
+pub mod timer;
 
 pub trait Millis {
     fn as_millis(&self) -> f64;

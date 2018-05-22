@@ -16,6 +16,8 @@ use Millis;
 use merkle;
 use merkle::{Sha256Hash, sha256, sha256_two_input};
 use server::RequestsToServe;
+use hyper_tls::HttpsConnector;
+
 
 pub fn tick(
     handle : &Handle,
@@ -24,7 +26,10 @@ pub fn tick(
     uri : Uri,
     core : &mut Core) {
 
-    let client = Client::new(handle);
+    let https_client = Client::configure()
+            .connector(HttpsConnector::new(4, &handle).unwrap())
+            .build(&handle);
+
     let interval = Interval::new(Duration::from_millis(time_slice), &handle).unwrap();
     let task = interval.for_each(move|_| {
         let mut requests_to_serve = requests_to_serve.lock().unwrap();
@@ -45,7 +50,7 @@ pub fn tick(
             req.headers_mut().set(ContentLength(body.len() as u64));
             req.set_body(body);
             let start = Instant::now();
-            let future = client.request(req)
+            let future = https_client.request(req)
                 .and_then(move|res| {
                     println!("Response from calendar: {} elapsed: {}ms",
                              res.status(), start.elapsed().as_millis());

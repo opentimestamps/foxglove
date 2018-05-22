@@ -6,6 +6,8 @@ extern crate crypto;
 extern crate rand;
 extern crate data_encoding;
 extern crate env_logger;
+extern crate hyper_tls;
+
 
 #[macro_use]
 extern crate log;

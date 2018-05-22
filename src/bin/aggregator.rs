@@ -1,6 +1,7 @@
 extern crate ots_aggregator;
 extern crate futures;
 extern crate hyper;
+extern crate hyper_tls;
 extern crate tokio_core;
 extern crate data_encoding;
 extern crate clap;

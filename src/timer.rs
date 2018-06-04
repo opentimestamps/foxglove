@@ -32,17 +32,22 @@ pub fn tick(
 
     let interval = Interval::new(Duration::from_millis(time_slice), &handle).unwrap();
     let task = interval.for_each(move|_| {
-        let mut requests_to_serve = requests_to_serve.lock().unwrap();
-        let total_requests = requests_to_serve.len();
-        if total_requests > 0 {
-            debug!("Requests_to_serve: {:?}", total_requests);
-            let mut senders = Vec::new();
-            let mut digests = Vec::new();
+
+
+        let mut senders = Vec::new();
+        let mut digests = Vec::new();
+
+        {   // using this block to fastly unlock the request_to_serve Arc
+            let mut requests_to_serve = requests_to_serve.lock().unwrap();
+            debug!("Requests_to_serve: {:?}", requests_to_serve.len());
+
             while let Some(request_to_serve) = requests_to_serve.pop() {
                 senders.push(request_to_serve.sender);
                 digests.push(request_to_serve.digest_sha256);
             }
+        }
 
+        if digests.len()>0 {
             let (root, merkle_proofs) = merkle::make(&digests );
             let mut req : Request = Request::new(Post, uri.clone());
             let body = root.0.to_vec();
@@ -64,6 +69,7 @@ pub fn tick(
 
             handle.spawn(future);
         }
+
         futures::future::ok(())
     });
 

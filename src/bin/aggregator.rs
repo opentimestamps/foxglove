@@ -7,7 +7,7 @@ extern crate data_encoding;
 extern crate clap;
 extern crate env_logger;
 
-#[macro_use]
+// #[macro_use]
 extern crate log;
 
 use std::net::SocketAddr;
@@ -38,7 +38,7 @@ fn main() {
                 .short("c")
                 .long("calendar")
                 .takes_value(true)
-                .help("Address of the calendar server (default: http://httpbin.org/post)")
+                .help("Address of the calendar server (default: https://finney.calendar.eternitywall.com/digest)")
         )
         .arg(
             Arg::with_name("time-slice")
@@ -52,13 +52,14 @@ fn main() {
                 .short("v")
                 .long("verbose")
                 .takes_value(false)
-                .help("If present log in debug mode")
+                .help("Do nothing for now, define RUST_LOG=debug for debug output")
         )
         .get_matches();
 
+
     let addr = matches.value_of("bind").unwrap_or("127.0.0.1:1337").parse::<SocketAddr>()
         .expect("Invalid bind address");
-    let calendar = matches.value_of("calendar").unwrap_or("http://httpbin.org/post");
+    let calendar = matches.value_of("calendar").unwrap_or("https://finney.calendar.eternitywall.com/digest");
     let time_slice = matches.value_of("time-slice").unwrap_or("100").parse().unwrap_or(100u64);
 
     println!("Starting on {:?}, using backend calendar at {} with a time slice of {}ms",

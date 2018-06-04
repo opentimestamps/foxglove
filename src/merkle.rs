@@ -112,3 +112,56 @@ pub fn merge_4_slices(a: &[u8], b: &[u8], c: &[u8], d: &[u8]) -> Vec<u8> {
     r.extend(d.to_vec());
     r
 }
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use merkle::Sha256Hash;
+    use merkle::sha256;
+    use merkle::sha256_two_input;
+    use merkle::make;
+    use data_encoding::HEXLOWER;
+
+    #[test]
+    fn test_sha256() {
+        let empty = Vec::new();
+        let a = sha256(&empty[..]);
+        let b = HEXLOWER.decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".as_bytes());
+        assert_eq!(&a.0[..],&b.unwrap()[..]);
+    }
+
+    #[test]
+    fn test_make() {
+        let empty = Vec::new();
+        let first_leaf = sha256(&empty[..]);
+        let mut digests = Vec::new();
+        digests.push(first_leaf.clone());
+        let (root, paths) = make(&digests);
+        assert_eq!(&root, &first_leaf);    // merkle tree with one element
+        println!("---> {:?}", paths);
+
+        let second_leaf = sha256(&empty[..]);
+        digests.push(second_leaf.clone());
+        let expected_root = sha256_two_input(&first_leaf.0, &second_leaf.0);
+        let (root, paths) = make(&digests);
+        assert_eq!(root, expected_root );
+        println!("---> {:?}", paths);
+
+        let third_leaf = sha256(&empty[..]);
+        digests.push(third_leaf.clone());
+        let double = sha256(&first_leaf.0);
+        let expected_root_3 = sha256_two_input(&expected_root.0, &double.0);
+        let (root, paths) = make(&digests);
+        assert_eq!(root, expected_root_3 );
+        println!("---> {:?}", paths);
+
+        let fourth_leaf = sha256(&empty[..]);
+        digests.push(fourth_leaf.clone());
+        let expected_root_4 = sha256_two_input(&expected_root.0, &expected_root.0);
+        let (root, paths) = make(&digests);
+        assert_eq!(root, expected_root_4 );
+        println!("---> {:?}", paths);
+    }
+}

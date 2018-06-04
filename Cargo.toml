@@ -1,7 +1,7 @@
 [package]
 name = "ots-aggregator"
 version = "0.1.0"
-authors = ["Riccardo Casatta <riccardo.casatta@gmail.com>"]
+authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 
 [dependencies]
 hyper = "0.11.22"

@@ -7,6 +7,7 @@ use futures::{self, Stream, Future};
 use hyper::{Post, StatusCode};
 use std::sync::Mutex;
 use futures::sync::oneshot::Sender;
+use data_encoding::HEXLOWER;
 
 pub struct Aggregator {
     // could be Rc<RefCell<...> at the moment, but what about the new multithreaded eventloop?
@@ -68,7 +69,9 @@ impl Service for Aggregator {
                         let digest = chunk.iter()
                             .cloned()
                             .collect::<Vec<u8>>();
+
                         let digest_sha256 = sha256(&digest);
+                        debug!("Received {} Hashed is {}", HEXLOWER.encode(&digest),HEXLOWER.encode(&digest_sha256.0));
                         let mut requests_to_serve = requests_to_serve_cloned.lock().unwrap();
                         requests_to_serve.push(RequestToServe::new(digest_sha256, sender));
                         Ok(())

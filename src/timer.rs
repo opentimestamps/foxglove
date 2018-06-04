@@ -35,11 +35,10 @@ pub fn tick(
         let mut requests_to_serve = requests_to_serve.lock().unwrap();
         let total_requests = requests_to_serve.len();
         if total_requests > 0 {
-            debug!("Requests_to_serve: {:?} nanos: {:?}", total_requests, Instant::now());
+            debug!("Requests_to_serve: {:?}", total_requests);
             let mut senders = Vec::new();
             let mut digests = Vec::new();
             while let Some(request_to_serve) = requests_to_serve.pop() {
-                //sender.send([0u8].to_vec());
                 senders.push(request_to_serve.sender);
                 digests.push(request_to_serve.digest_sha256);
             }
@@ -57,7 +56,7 @@ pub fn tick(
                     res.body().concat2()
                 })
                 .and_then(move |body| {
-                    debug!("Body: {} ", HEXLOWER.encode(&body) );
+                    println!("Body: {} ", HEXLOWER.encode(&body) );
                     answer(merkle_proofs, digests, senders, body);
                     Ok(())
                 })
@@ -77,7 +76,7 @@ fn answer(
     digests : Vec<Sha256Hash>,
     mut senders : Vec<Sender<Vec<u8>>>,
     body : Chunk) {
-    for digest in digests {
+    for digest in digests.iter().rev() {
         let mut response : Vec<u8> = Vec::new();
         let mut current_hash = digest.clone();
         response.push(merkle::SHA256_TAG);  // first op on digest is sha256
@@ -106,4 +105,5 @@ fn answer(
         // first unwrap safe because senders vec has same elements of digests
         senders.pop().unwrap().send(response).unwrap();
     }
+    println!("-----");
 }

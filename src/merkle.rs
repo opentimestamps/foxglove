@@ -54,13 +54,13 @@ pub fn merkle_root_and_paths(
         return Sha256Hash(hash_list.first().unwrap().0);
     }
 
-    // Calculates sha hash for each pair. If len is odd, last value is hashed alone. ()
+    // Calculates sha hash for each pair. If len is odd, last value is kept the same
     let mut hash_pairs = hash_list.chunks(2)
         .map(|c| {
             if c.len()==2 {
                 sha256_two_input(&c[0].0, &c[1].0)
             } else {
-                sha256(&c[0].0)
+                c[0].clone()
             }
         })
         .collect::<Vec<Sha256Hash>>();
@@ -68,12 +68,10 @@ pub fn merkle_root_and_paths(
     // Insert paths to reach the next element
     for (i, el) in hash_list.iter().enumerate() {
         if i % 2 == 0 {
-            match hash_list.get(i+1) {
-                //merge_4_slices(&append_tag, &sha256_size , &next.0, &sha256_tag)
-                Some(next) =>  merkle_paths.insert(
+            if let Some(next) = hash_list.get(i+1) {
+                merkle_paths.insert(
                     Sha256Hash(el.0),
-                    Ops::new(vec![Op::Append(next.0.to_vec()), Op::Sha256]) ),
-                None => merkle_paths.insert(Sha256Hash(el.0),Ops::new(vec![Op::Sha256]) ),
+                    Ops::new(vec![Op::Append(next.0.to_vec()), Op::Sha256]) );
             };
         } else {
             merkle_paths.insert(

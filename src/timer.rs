@@ -17,6 +17,7 @@ use merkle;
 use merkle::{Sha256Hash, sha256, sha256_two_input};
 use server::RequestsToServe;
 use hyper_tls::HttpsConnector;
+use timestamp::Ops;
 
 
 pub fn tick(
@@ -78,7 +79,7 @@ pub fn tick(
 
 
 fn answer(
-    merkle_proofs : HashMap<Sha256Hash, Vec<u8>>,
+    merkle_proofs : HashMap<Sha256Hash, Ops>,
     digests : Vec<Sha256Hash>,
     mut senders : Vec<Sender<Vec<u8>>>,
     body : Chunk) {
@@ -86,7 +87,8 @@ fn answer(
         let mut response : Vec<u8> = Vec::new();
         let mut current_hash = digest.clone();
         response.push(merkle::SHA256_TAG);  // first op on digest is sha256
-        while let Some(result) = merkle_proofs.get(&current_hash) {
+        while let Some(ops) = merkle_proofs.get(&current_hash) {
+            let result = ops.serialize().unwrap();
             debug!("extending {:?}", HEXLOWER.encode(&result));
             current_hash = match result[0] {
                 merkle::SHA256_TAG => {

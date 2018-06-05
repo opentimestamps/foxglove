@@ -11,12 +11,14 @@ extern crate hyper_tls;
 
 #[macro_use]
 extern crate log;
+extern crate opentimestamps;
 
 use std::time::Duration;
 
 pub mod server;
 pub mod merkle;
 pub mod timer;
+pub mod timestamp;
 
 pub trait Millis {
     fn as_millis(&self) -> f64;

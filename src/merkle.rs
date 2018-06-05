@@ -1,5 +1,4 @@
 use std::time::Instant;
-use std::collections::HashMap;
 use crypto::sha2::Sha256;
 use crypto::digest::Digest;
 use Millis;
@@ -8,6 +7,7 @@ use std::fmt::Formatter;
 use std::fmt;
 use timestamp::Ops;
 use opentimestamps::op::Op;
+use timestamp::MerklePaths;
 
 pub const SHA256_TAG : u8 = 0x08;
 pub const APPEND_TAG : u8 = 0xf0;
@@ -36,18 +36,18 @@ impl Sha256Hash {
     }
 }
 
-pub fn make(digests_sha256 : &[Sha256Hash]) -> (Sha256Hash, HashMap<Sha256Hash, Ops>) {
+pub fn make(digests_sha256 : &[Sha256Hash]) -> (Sha256Hash, MerklePaths) {
     let now = Instant::now();
-    let mut merkle_proofs : HashMap<Sha256Hash, Ops> = HashMap::new();
-    let root = merkle_root_and_paths(digests_sha256, &mut merkle_proofs);
+    let mut merkle_paths = MerklePaths::new();
+    let root = merkle_root_and_paths(digests_sha256, &mut merkle_paths);
     println!("merkle of #{} elapsed {:.3}ms, root {}",
              digests_sha256.len(), now.elapsed().as_millis(), root);
-    (root, merkle_proofs)
+    (root, merkle_paths)
 }
 
 pub fn merkle_root_and_paths(
     hash_list: &[Sha256Hash],
-    merkle_proofs : &mut HashMap<Sha256Hash,Ops>) -> Sha256Hash {
+    merkle_paths : &mut MerklePaths) -> Sha256Hash {
 
     let n_hashes = hash_list.len();
     if n_hashes == 1 {
@@ -70,19 +70,19 @@ pub fn merkle_root_and_paths(
         if i % 2 == 0 {
             match hash_list.get(i+1) {
                 //merge_4_slices(&append_tag, &sha256_size , &next.0, &sha256_tag)
-                Some(next) =>  merkle_proofs.insert(
+                Some(next) =>  merkle_paths.insert(
                     Sha256Hash(el.0),
                     Ops::new(vec![Op::Append(next.0.to_vec()), Op::Sha256]) ),
-                None => merkle_proofs.insert(Sha256Hash(el.0),Ops::new(vec![Op::Sha256]) ),
+                None => merkle_paths.insert(Sha256Hash(el.0),Ops::new(vec![Op::Sha256]) ),
             };
         } else {
-            merkle_proofs.insert(
+            merkle_paths.insert(
                 Sha256Hash(el.0),
                 Ops::new(vec![Op::Prepend(hash_list[i - 1].0.to_vec()), Op::Sha256]) );
         };
     }
 
-    return merkle_root_and_paths(&mut hash_pairs, merkle_proofs);
+    return merkle_root_and_paths(&mut hash_pairs, merkle_paths);
 }
 
 #[inline]
@@ -103,29 +103,6 @@ pub fn sha256_two_input(a: &[u8], b: &[u8] ) -> Sha256Hash {
     hasher.result(&mut out);
     Sha256Hash(out)
 }
-
-#[inline]
-pub fn merge_slices(a: &[u8], b: &[u8]) -> Vec<u8> {
-    let mut r = a.to_vec();
-    r.extend(b.to_vec());
-    r
-}
-
-#[inline]
-pub fn merge_3_slices(a: &[u8], b: &[u8], c: &[u8]) -> Vec<u8> {
-    let mut r = merge_slices(a,b);
-    r.extend(c.to_vec());
-    r
-}
-
-#[inline]
-pub fn merge_4_slices(a: &[u8], b: &[u8], c: &[u8], d: &[u8]) -> Vec<u8> {
-    let mut r = merge_3_slices(a,b,c);
-    r.extend(d.to_vec());
-    r
-}
-
-
 
 
 #[cfg(test)]

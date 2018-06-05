@@ -5,18 +5,49 @@ use opentimestamps::timestamp::Step;
 use opentimestamps::timestamp::StepData;
 use opentimestamps::attestation::Attestation;
 use opentimestamps::ser::Serializer;
+use std::collections::HashMap;
+use merkle::Sha256Hash;
+use std::fmt::Formatter;
+use std::fmt;
+use data_encoding::HEXLOWER;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ops (
     Vec<Op>
 );
+
+#[derive(Debug, Clone)]
+pub struct LinearTimestamp {
+    pub initial_msg: Vec<u8>,
+    pub ops: Ops,
+}
+
+pub type MerklePaths = HashMap<Sha256Hash, Ops>;
+
+
+
+impl fmt::Display for LinearTimestamp {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{} ", HEXLOWER.encode(&self.initial_msg) ).unwrap();
+        write!(f, "{} ", &self.ops )
+    }
+}
+
+
+impl fmt::Display for Ops {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for op in &self.0 {
+            write!(f, "{} ", op).unwrap();
+        }
+        Ok(())
+    }
+}
 
 impl Default for Ops {
     fn default() -> Self {
         Ops(vec![])
     }
 }
-
 impl Ops {
 
     pub fn new(ops : Vec<Op>) -> Self {
@@ -64,15 +95,13 @@ impl Ops {
             next: vec![dummy_attestation],
         };
 
-        for op in self.0.iter().rev() {
-            if last != op {
-                let s = Step {
-                    data: StepData::Op(op.clone()),
-                    output: vec![],
-                    next: vec![last_step],
-                };
-                last_step = s;
-            }
+        for op in self.0.iter().rev().skip(1) {
+            let s = Step {
+                data: StepData::Op(op.clone()),
+                output: vec![],
+                next: vec![last_step],
+            };
+            last_step = s;
         }
 
         let a = Timestamp {
@@ -93,10 +122,35 @@ impl Ops {
     }
 }
 
+
+impl LinearTimestamp {
+    pub fn new(initial_msg : Vec<u8>) -> Self {
+        LinearTimestamp {
+            initial_msg,
+            ops: Ops::default(),
+        }
+    }
+
+    pub fn push(&mut self, op : Op) -> &mut Self {
+        self.ops.push(op);
+        self
+    }
+
+    pub fn extend(&mut self, ops : Ops) -> &mut Self {
+        self.ops.extend(ops.0);
+        self
+    }
+
+    pub fn execute(&self) -> Vec<u8> {
+        self.ops.execute(self.initial_msg.clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use data_encoding::HEXLOWER;
     use timestamp::Ops;
+    use timestamp::LinearTimestamp;
     use opentimestamps::op::Op;
 
     #[test]
@@ -107,8 +161,23 @@ mod tests {
             .push(Op::Sha256)
             .push( Op::Prepend(vec![0x05]));
 
-        assert_eq!("f002001108f10105",HEXLOWER.encode( &linear.serialize().unwrap() ))
+        assert_eq!("f002001108f10105", HEXLOWER.encode( &linear.serialize() ))
 
     }
+
+    #[test]
+    fn test_timestamp_execute() {
+        let mut t = LinearTimestamp::new(vec![]);
+        t.push(Op::Sha256);
+        let result = t.execute();
+        assert_eq!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", HEXLOWER.encode( &result));
+
+        t.push(Op::Append(vec![0x00]));
+        t.push(Op::Prepend(vec![0x00]));
+        let result = t.execute();
+        assert_eq!("00e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85500", HEXLOWER.encode( &result));
+
+    }
+
 
 }

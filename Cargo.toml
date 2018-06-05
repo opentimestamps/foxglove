@@ -1,6 +1,6 @@
 [package]
 name = "ots-aggregator"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 
 [dependencies]
@@ -9,7 +9,7 @@ hyper-tls = "0.1.3"
 futures = "0.1.18"
 tokio = "0.1"
 tokio-core = "0.1"
-rand = "0.4.2"
+rand = "0.5"
 rust-crypto = "~0.2"
 data-encoding = "2.1.1"
 clap = "2.29.2"

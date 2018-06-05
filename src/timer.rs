@@ -1,6 +1,5 @@
 
 use std::time::{Instant, Duration};
-use std::collections::HashMap;
 use std::sync::{Mutex, Arc};
 use tokio_core::reactor::{Interval, Core};
 use tokio_core::reactor::Handle;
@@ -17,7 +16,8 @@ use merkle;
 use merkle::Sha256Hash;
 use server::RequestsToServe;
 use hyper_tls::HttpsConnector;
-use timestamp::Ops;
+use timestamp::MerklePaths;
+use timestamp::LinearTimestamp;
 
 
 pub fn tick(
@@ -34,7 +34,7 @@ pub fn tick(
     let interval = Interval::new(Duration::from_millis(time_slice), &handle).unwrap();
     let task = interval.for_each(move|_| {
 
-
+        let mut timestamps = Vec::new();
         let mut senders = Vec::new();
         let mut digests = Vec::new();
 
@@ -44,12 +44,14 @@ pub fn tick(
 
             while let Some(request_to_serve) = requests_to_serve.pop() {
                 senders.push(request_to_serve.sender);
-                digests.push(request_to_serve.digest_sha256);
+                digests.push(Sha256Hash::from_vec( request_to_serve.timestamp.execute() ).unwrap() );
+                timestamps.push(request_to_serve.timestamp);
             }
         }
 
         if digests.len()>0 {
-            let (root, merkle_proofs) = merkle::make(&digests );
+            let (root, merkle_paths) = merkle::make(&digests );
+            extend_timestamps(&mut timestamps, merkle_paths);
             let mut req : Request = Request::new(Post, uri.clone());
             let body = root.0.to_vec();
             req.headers_mut().set(ContentLength(body.len() as u64));
@@ -63,7 +65,7 @@ pub fn tick(
                 })
                 .and_then(move |body| {
                     println!("Body: {} ", HEXLOWER.encode(&body) );
-                    answer(merkle_proofs, digests, senders, body);
+                    answer(timestamps, senders, body);
                     Ok(())
                 })
                 .map_err(|_| ());
@@ -77,26 +79,29 @@ pub fn tick(
     core.run(task).unwrap();
 }
 
+fn extend_timestamps(timestamps : &mut Vec<LinearTimestamp>, merkle_paths : MerklePaths) {
+    for timestamp in timestamps {
+        let mut current_hash = Sha256Hash::from_vec( timestamp.execute() ).unwrap();
+        while let Some(ops) = merkle_paths.get(&current_hash) {
+            timestamp.extend(ops.clone());
+            current_hash = Sha256Hash::from_vec(ops.execute(current_hash.0.to_vec())).unwrap();
+        }
+        debug!("extend timestamp {}", timestamp);
+    }
+}
 
 fn answer(
-    merkle_proofs : HashMap<Sha256Hash, Ops>,
-    digests : Vec<Sha256Hash>,
+    timestamps : Vec<LinearTimestamp>,
     mut senders : Vec<Sender<Vec<u8>>>,
     body : Chunk) {
-    for digest in digests.iter().rev() {
+
+    for timestamp in timestamps.iter().rev() {
         let mut response : Vec<u8> = Vec::new();
-        let mut current_hash = digest.clone();
-        response.push(merkle::SHA256_TAG);  // first op on digest is sha256
-        while let Some(ops) = merkle_proofs.get(&current_hash) {
-            let result = ops.serialize();
-            debug!("extending {:?}", HEXLOWER.encode(&result));
-            current_hash = Sha256Hash::from_vec(ops.execute(current_hash.0.to_vec())).unwrap();
-            response.extend(result);
-        }
-
+        response.extend(timestamp.ops.serialize() );
         response.extend(body.to_vec());
-        debug!("For {} returning: {}", HEXLOWER.encode(&digest.0), HEXLOWER.encode(&response));
-
+        debug!("For {} returning: {}",
+               HEXLOWER.encode(&timestamp.initial_msg),
+               HEXLOWER.encode(&response));
         // first unwrap safe because senders vec has same elements of digests
         senders.pop().unwrap().send(response).unwrap();
     }

@@ -2,12 +2,15 @@ use std::sync::Arc;
 use futures::sync::oneshot;
 use hyper;
 use hyper::server::{Request, Response, Service};
-use merkle::{Sha256Hash, sha256};
 use futures::{self, Stream, Future};
 use hyper::{Post, StatusCode};
 use std::sync::Mutex;
 use futures::sync::oneshot::Sender;
 use data_encoding::HEXLOWER;
+use timestamp::LinearTimestamp;
+use opentimestamps::op::Op;
+use rand::prelude::thread_rng;
+use rand::Rng;
 
 pub struct Aggregator {
     // could be Rc<RefCell<...> at the moment, but what about the new multithreaded eventloop?
@@ -19,14 +22,14 @@ pub struct RequestsToServe {
 }
 
 pub struct RequestToServe {
-    pub digest_sha256: Sha256Hash,
+    pub timestamp: LinearTimestamp,
     pub sender: Sender<Vec<u8>>,
 }
 
 impl RequestToServe {
-    fn new(digest_sha256: Sha256Hash, sender: Sender<Vec<u8>>) -> RequestToServe {
+    fn new(timestamp: LinearTimestamp, sender: Sender<Vec<u8>>) -> RequestToServe {
         RequestToServe {
-            digest_sha256,
+            timestamp,
             sender,
         }
     }
@@ -52,6 +55,8 @@ impl Default for RequestsToServe {
     }
 }
 
+const MAX_DIGEST_LENGTH : usize = 64;
+
 impl Service for Aggregator {
     type Request = Request;
     type Response = Response;
@@ -69,11 +74,16 @@ impl Service for Aggregator {
                         let digest = chunk.iter()
                             .cloned()
                             .collect::<Vec<u8>>();
-
-                        let digest_sha256 = sha256(&digest);
-                        debug!("Received {} Hashed is {}", HEXLOWER.encode(&digest),HEXLOWER.encode(&digest_sha256.0));
+                        if digest.len() > MAX_DIGEST_LENGTH {
+                            return Err(hyper::Error::Incomplete);
+                        }
+                        debug!("Received digest {}", HEXLOWER.encode(&digest));
+                        let mut timestamp = LinearTimestamp::new(digest);
+                        timestamp.push(Op::Append(nonce()));
+                        timestamp.push(Op::Sha256);
+                        debug!("{}", timestamp);
                         let mut requests_to_serve = requests_to_serve_cloned.lock().unwrap();
-                        requests_to_serve.push(RequestToServe::new(digest_sha256, sender));
+                        requests_to_serve.push(RequestToServe::new(timestamp, sender));
                         Ok(())
                     })
                     .join(receiver.map_err(|e| { println!("{:?}",e); hyper::Error::Incomplete }))
@@ -93,3 +103,11 @@ impl Service for Aggregator {
 }
 
 
+fn nonce() -> Vec<u8> {
+    let mut vec: Vec<u8> = Vec::with_capacity(16);
+    let mut rng = thread_rng();
+    for _ in 0..16 {
+        vec.push(rng.gen());
+    }
+    vec
+}

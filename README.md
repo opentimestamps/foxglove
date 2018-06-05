@@ -1,6 +1,6 @@
-# OpenTimestamps Aggregator
+# Foxglove
 
-This is an high performance OpenTimestamps requests aggregator.
+Foxglove is an high performance OpenTimestamps requests aggregator.
 
 It works by aggregating requests received in a time slice (eg. 100ms), building a merkle tree and making just one
 request to a back end OpenTimestamps calendar. When the calendar replies all the pending requests are served.
@@ -12,7 +12,6 @@ To achieve high performance it is entirely futures-based and blocking-free code.
 
 ## Todo
 
-* Integrate Rust OpenTimestamps lib
 * Do proper load testing and performance measurements
 * Move to a multi-threaded event loop when [tokio](https://tokio.rs/blog/2018-03-tokio-runtime/) stabilize
 * Run clippy linter and solve any problem

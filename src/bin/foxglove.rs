@@ -1,4 +1,4 @@
-extern crate ots_aggregator;
+extern crate foxglove;
 extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
@@ -17,8 +17,8 @@ use hyper::server::Http;
 use hyper::Uri;
 use futures::{Stream, Future};
 use clap::{Arg, App};
-use ots_aggregator::server::{Aggregator, RequestsToServe};
-use ots_aggregator::timer;
+use foxglove::server::{Aggregator, RequestsToServe};
+use foxglove::timer;
 
 fn main() {
     env_logger::init();

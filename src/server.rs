@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use futures::sync::oneshot;
+use std::sync::Mutex;
 use hyper;
 use hyper::server::{Request, Response, Service};
-use futures::{self, Stream, Future};
 use hyper::{Post, StatusCode};
-use std::sync::Mutex;
+use futures::sync::oneshot;
+use futures::{self, Stream, Future};
 use futures::sync::oneshot::Sender;
 use data_encoding::HEXLOWER;
 use timestamp::LinearTimestamp;

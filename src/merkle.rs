@@ -1,18 +1,14 @@
 use std::time::Instant;
-use crypto::sha2::Sha256;
-use crypto::digest::Digest;
-use Millis;
-use data_encoding::HEXLOWER;
 use std::fmt::Formatter;
 use std::fmt;
-use timestamp::Ops;
+use crypto::sha2::Sha256;
+use crypto::digest::Digest;
+use data_encoding::HEXLOWER;
 use opentimestamps::op::Op;
+use Millis;
+use timestamp::Ops;
 use timestamp::MerklePaths;
 
-pub const SHA256_TAG : u8 = 0x08;
-pub const APPEND_TAG : u8 = 0xf0;
-pub const PREPEND_TAG : u8 = 0xf1;
-pub const SHA256_SIZE : u8 = 0x20;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Sha256Hash(pub [u8; 32]);

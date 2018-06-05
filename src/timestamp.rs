@@ -33,9 +33,18 @@ impl Ops {
         self
     }
 
-    pub fn serialize(&self) -> Result<Vec<u8>,()> {
+    pub fn execute(&self, initial_msg : Vec<u8>) -> Vec<u8> {
+        let mut current = initial_msg;
+        for op in self.0.iter() {
+            current = op.execute(&current);
+        }
+
+        current
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
         if self.0.is_empty() {
-            return Err(())
+            return vec![]
         }
 
         // opentimestamps lib cannot serialize without a final attestation, adding a dummy one
@@ -80,7 +89,7 @@ impl Ops {
         vec.pop();
         vec.pop();
 
-        Ok(vec)
+        vec
     }
 }
 

@@ -23,6 +23,19 @@ impl fmt::Display for Sha256Hash {
     }
 }
 
+impl Sha256Hash {
+    pub fn from_vec(vec : Vec<u8>) -> Result<Sha256Hash,()> {
+        match vec.len() {
+            32 => {
+                let mut array = [0u8; 32];
+                array.copy_from_slice(&vec);
+                Ok(Sha256Hash(array))
+            },
+            _ => Err(())
+        }
+    }
+}
+
 pub fn make(digests_sha256 : &[Sha256Hash]) -> (Sha256Hash, HashMap<Sha256Hash, Ops>) {
     let now = Instant::now();
     let mut merkle_proofs : HashMap<Sha256Hash, Ops> = HashMap::new();

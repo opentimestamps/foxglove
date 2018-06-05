@@ -14,7 +14,7 @@ use futures::sync::oneshot::Sender;
 use futures::{Stream, Future};
 use Millis;
 use merkle;
-use merkle::{Sha256Hash, sha256, sha256_two_input};
+use merkle::Sha256Hash;
 use server::RequestsToServe;
 use hyper_tls::HttpsConnector;
 use timestamp::Ops;
@@ -88,22 +88,9 @@ fn answer(
         let mut current_hash = digest.clone();
         response.push(merkle::SHA256_TAG);  // first op on digest is sha256
         while let Some(ops) = merkle_proofs.get(&current_hash) {
-            let result = ops.serialize().unwrap();
+            let result = ops.serialize();
             debug!("extending {:?}", HEXLOWER.encode(&result));
-            current_hash = match result[0] {
-                merkle::SHA256_TAG => {
-                    sha256(&current_hash.0)
-                },
-                merkle::APPEND_TAG => {
-                    sha256_two_input(&current_hash.0, &result[2..result.len()-1])
-                },
-                merkle::PREPEND_TAG => {
-                    sha256_two_input(&result[2..result.len()-1], &current_hash.0)
-                },
-                _ => {
-                    panic!("Unexpected TAG");
-                }
-            };
+            current_hash = Sha256Hash::from_vec(ops.execute(current_hash.0.to_vec())).unwrap();
             response.extend(result);
         }
 

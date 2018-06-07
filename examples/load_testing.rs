@@ -9,7 +9,7 @@ use hyper::Client;
 use tokio_core::reactor::Core;
 use hyper::{Method, Request};
 use hyper::header::{ContentLength, ContentType};
-use rand::Rng;
+use rand::RngCore;
 use std::env;
 use hyper::Uri;
 

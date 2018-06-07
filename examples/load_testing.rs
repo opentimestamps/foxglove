@@ -3,7 +3,6 @@ extern crate hyper;
 extern crate tokio_core;
 extern crate rand;
 
-use std::io::{self, Write};
 use futures::{Future, Stream};
 use hyper::Client;
 use tokio_core::reactor::Core;
@@ -19,7 +18,7 @@ use hyper::Uri;
 fn main() {
     if let Some(arg1) = env::args().nth(1) {
         println!("The first argument is {}", arg1);
-        start(arg1);
+        start(arg1).unwrap();
     } else{
         println!("Specify the aggregator address");
     }
@@ -35,7 +34,7 @@ fn start( cal : String) -> Result<(),()> {
     let mut bytes = [0u8;44];
     let mut rng = rand::thread_rng();
 
-    for i in 0..100 {
+    for _ in 0..100 {
         let mut req : Request = Request::new(Method::Post, uri.clone());
         rng.fill_bytes(&mut bytes);
         req.headers_mut().set(ContentType::octet_stream());

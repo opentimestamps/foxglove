@@ -43,10 +43,9 @@ fn main() {
 
     println!("{}",a);
 
-    let mut writer = vec![];
+    let writer = vec![];
     let mut ser = Serializer::new(writer);
-    a.serialize(&mut ser);
+    a.serialize(&mut ser).unwrap();
     println!("{:?}",ser.into_inner())
-
 
 }

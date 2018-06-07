@@ -133,8 +133,7 @@ mod tests {
 
         let third_leaf = sha256(&empty[..]);
         digests.push(third_leaf.clone());
-        let double = sha256(&first_leaf.0);
-        let expected_root_3 = sha256_two_input(&expected_root.0, &double.0);
+        let expected_root_3 = sha256_two_input(&expected_root.0, &first_leaf.0);
         let (root, paths) = make(&digests);
         assert_eq!(root, expected_root_3 );
         println!("---> {:?}", paths);

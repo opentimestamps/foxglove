@@ -11,7 +11,6 @@ use data_encoding::HEXLOWER;
 use futures;
 use futures::sync::oneshot::Sender;
 use futures::{Stream, Future};
-use Millis;
 use merkle;
 use merkle::Sha256Hash;
 use server::RequestsToServe;

@@ -5,7 +5,6 @@ use crypto::sha2::Sha256;
 use crypto::digest::Digest;
 use data_encoding::HEXLOWER;
 use opentimestamps::op::Op;
-use Millis;
 use timestamp::Ops;
 use timestamp::MerklePaths;
 

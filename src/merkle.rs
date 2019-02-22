@@ -50,7 +50,7 @@ pub fn merkle_root_and_paths(
     }
 
     // Calculates sha hash for each pair. If len is odd, last value is kept the same
-    let mut hash_pairs = hash_list.chunks(2)
+    let hash_pairs = hash_list.chunks(2)
         .map(|c| {
             if c.len()==2 {
                 sha256_two_input(&c[0].0, &c[1].0)

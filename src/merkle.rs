@@ -75,7 +75,7 @@ pub fn merkle_root_and_paths(
         };
     }
 
-    return merkle_root_and_paths(&mut hash_pairs, merkle_paths);
+    merkle_root_and_paths(&mut hash_pairs, merkle_paths)
 }
 
 #[inline]

@@ -26,6 +26,6 @@ pub trait Millis {
 impl Millis for Duration {
     fn as_millis(&self) -> f64 {
         self.as_secs() as f64 * 1000.0 +
-            self.subsec_nanos() as f64 / 1000000.0
+            self.subsec_nanos() as f64 / 1_000_000.0
     }
 }

@@ -42,6 +42,9 @@ impl RequestsToServe {
     pub fn len(&self) -> usize {
         self.requests.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.requests.is_empty()
+    }
     pub fn pop(&mut self) -> Option<RequestToServe> {
         self.requests.pop()
     }

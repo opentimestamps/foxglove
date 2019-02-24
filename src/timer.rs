@@ -11,7 +11,6 @@ use data_encoding::HEXLOWER;
 use futures;
 use futures::sync::oneshot::Sender;
 use futures::{Stream, Future};
-use Millis;
 use merkle;
 use merkle::Sha256Hash;
 use server::RequestsToServe;
@@ -49,7 +48,7 @@ pub fn tick(
             }
         }
 
-        if digests.len()>0 {
+        if !digests.is_empty() {
             let (root, merkle_paths) = merkle::make(&digests );
             extend_timestamps(&mut timestamps, merkle_paths);
             let mut req : Request = Request::new(Post, uri.clone());

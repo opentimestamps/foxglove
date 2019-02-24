@@ -5,7 +5,6 @@ use crypto::sha2::Sha256;
 use crypto::digest::Digest;
 use data_encoding::HEXLOWER;
 use opentimestamps::op::Op;
-use Millis;
 use timestamp::Ops;
 use timestamp::MerklePaths;
 
@@ -51,7 +50,7 @@ pub fn merkle_root_and_paths(
     }
 
     // Calculates sha hash for each pair. If len is odd, last value is kept the same
-    let mut hash_pairs = hash_list.chunks(2)
+    let hash_pairs = hash_list.chunks(2)
         .map(|c| {
             if c.len()==2 {
                 sha256_two_input(&c[0].0, &c[1].0)
@@ -76,7 +75,7 @@ pub fn merkle_root_and_paths(
         };
     }
 
-    return merkle_root_and_paths(&mut hash_pairs, merkle_paths);
+    merkle_root_and_paths(&hash_pairs, merkle_paths)
 }
 
 #[inline]

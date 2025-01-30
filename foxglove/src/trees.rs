@@ -36,8 +36,7 @@ fn hash_tree(digests: &[[u8; 32]]) -> (Vec<Vec<Op>>, [u8; 32]) {
 
     while prev_level.len() > 1 {
         inner_levels.push(hash_pairs(prev_level));
-        prev_level = inner_levels.last().expect("FIXME");
-        dbg!(prev_level.len());
+        prev_level = inner_levels.last().expect("we just pushed a level");
     }
 
     let mut levels: Vec<&[[u8; 32]]> = vec![digests];
@@ -45,17 +44,15 @@ fn hash_tree(digests: &[[u8; 32]]) -> (Vec<Vec<Op>>, [u8; 32]) {
 
     let mut r = vec![];
     for i in 0 .. digests.len() {
-        eprintln!("for digest i = {}", i);
         let mut steps = vec![];
         for j in 0 .. levels.len() - 1 {
-            eprintln!("level j = {}", j);
-            match dbg!((i >> j) & 0b1) {
+            match (i >> j) & 0b1 {
                 0 => {
                     if let Some(sibling) = levels[j].get((i >> j) + 1) {
                         steps.push(Op::Append(*sibling));
                     } else {
                         // Odd-numbered hash, duplicated.
-                        steps.push(dbg!(Op::Append(levels[j][i >> j])));
+                        steps.push(Op::Append(levels[j][i >> j]));
                     }
                 },
                 1 => {
@@ -126,5 +123,9 @@ mod tests {
         let (digest_steps, tip) = hash_tree(&[[0; 32], [1; 32], [2; 32], [3; 32], [4; 32], [5; 32], [6; 32], [7;32], [8; 32]]);
         assert_eq!(tip, [2, 13, 235, 58, 9, 19, 117, 234, 116, 28, 73, 93, 142, 23, 15, 38, 132, 232, 87, 160, 158, 71, 203, 108, 180, 79, 99, 227, 168, 102, 58, 177]);
         assert_eq!(digest_steps.len(), 9);
+
+        let (digest_steps, tip) = hash_tree(&[[0; 32]; 10000]);
+        assert_eq!(tip, [181, 141, 144, 15, 94, 24, 46, 60, 80, 239, 116, 150, 158, 161, 108, 119, 38, 197, 73, 117, 124, 194, 53, 35, 195, 105, 88, 125, 167, 41, 55, 132]);
+        assert_eq!(digest_steps.len(), 10000);
     }
 }

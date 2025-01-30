@@ -12,12 +12,11 @@ use tokio::net::TcpListener;
 
 use reqwest;
 
-//mod aggregator;
-//mod rpc;
+mod aggregator;
+mod rpc;
 
 mod trees;
 
-/*
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let period = std::time::Duration::from_millis(1000);
@@ -52,4 +51,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
     }
 }
-*/

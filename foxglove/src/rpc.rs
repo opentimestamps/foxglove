@@ -23,7 +23,7 @@ async fn do_post_digest(
     r: Request<hyper::body::Incoming>,
     req_sender: tokio::sync::mpsc::Sender<StampRequest>,
 )
-    -> Result<Response<Full<Bytes>>, Infallible>
+    -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error>>
 {
     let digest_fut = Limited::new(r.into_body(), 64)
                              .collect();
@@ -32,30 +32,17 @@ async fn do_post_digest(
         Ok(digest) => {
             let digest = digest.to_bytes();
 
-            let (req, timestamp_receiver) = dbg!(StampRequest::new(&digest));
+            let (req, timestamp_receiver) = StampRequest::new(&digest);
+            req_sender.send(req).await.expect("FIXME: handle error");
 
-            req_sender.send(req).await.unwrap();
+            let stamp = timestamp_receiver.await?.expect("FIXME: handle stamp request error");
 
-            dbg!(timestamp_receiver.await);
-
-            Ok(Response::new(Full::new(Bytes::from(""))))
-            /*
-            let client = reqwest::Client::new();
-            let response = client.post("https://a.pool.opentimestamps.org/digest")
-                                 .body(digest)
-                                 .send()
-                                 .await.unwrap();
-            dbg!(&response);
-
-            let proof = response.bytes().await.unwrap();
-            dbg!(&proof);
-
-            Ok(Response::new(Full::new(proof)))
-            */
+            let stamp = stamp.serialize();
+            Ok(Response::new(Full::new(Bytes::from(stamp))))
         },
         Err(e) => {
             match e.downcast::<LengthLimitError>() {
-                Ok(e) => {
+                Ok(_) => {
                     Ok(Response::builder()
                                 .status(400)
                                 .header(http::header::CONTENT_TYPE, "text/plain")
@@ -77,7 +64,7 @@ async fn serve_http_request(
     dbg!(&r);
     match r.uri().path() {
         "/" => do_get_root().await,
-        "/digest" if r.method() == http::Method::POST => do_post_digest(r, digest_sender).await,
+        "/digest" if r.method() == http::Method::POST => Ok(do_post_digest(r, digest_sender).await.expect("FIXME: handle errors")),
         _ => {
             Ok(Response::builder()
                         .header(http::header::CONTENT_TYPE, "text/plain")

@@ -1,7 +1,7 @@
 use bitcoin_hashes::Sha256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Op {
+pub enum Op {
     Sha256,
     Append([u8; 32]),
     Prepend([u8; 32]),
@@ -28,7 +28,7 @@ fn hash_pairs(mut digests: &[[u8; 32]]) -> Vec<[u8; 32]> {
     }
 }
 
-fn hash_tree(digests: &[[u8; 32]]) -> (Vec<Vec<Op>>, [u8; 32]) {
+pub fn hash_tree(digests: &[[u8; 32]]) -> (Vec<Vec<Op>>, [u8; 32]) {
     assert!(digests.len() > 0);
 
     let mut prev_level = digests;

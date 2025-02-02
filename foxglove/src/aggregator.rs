@@ -11,7 +11,7 @@ use crate::trees::{Op, hash_tree};
 
 #[derive(Debug)]
 pub struct LinearTimestamp {
-    nonce: [u8; 16],
+    nonce: [u8; 8],
     ops: Vec<Op>,
     proof: Vec<u8>,
 }
@@ -20,7 +20,7 @@ impl LinearTimestamp {
     pub fn serialize(&self) -> Box<[u8]> {
         let mut r = vec![];
         r.push(0xf0); // append
-        r.push(16); // 16 byte nonce
+        r.push(8); // 8 byte nonce
         r.extend_from_slice(&self.nonce);
         r.push(0x08); // sha256
 
@@ -54,7 +54,7 @@ pub struct StampRequestError {
 
 #[derive(Debug)]
 pub struct StampRequest {
-    nonce: [u8; 16],
+    nonce: [u8; 8],
     digest: [u8; 32],
     reply: tokio::sync::oneshot::Sender<Result<LinearTimestamp, StampRequestError>>,
 }
@@ -63,7 +63,7 @@ impl StampRequest {
     pub fn new(digest: &[u8]) -> (Self, tokio::sync::oneshot::Receiver<Result<LinearTimestamp, StampRequestError>>) {
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
-        let nonce: [u8;16] = rand::random();
+        let nonce: [u8; 8] = rand::random();
         (Self {
             digest: Sha256::hash_byte_chunks(&[digest, &nonce]).to_byte_array(),
             nonce,

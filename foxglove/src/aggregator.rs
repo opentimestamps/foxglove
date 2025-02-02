@@ -129,7 +129,7 @@ mod tests {
     async fn test_aggregate_requests() {
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let req = StampRequest {
-            nonce: [0; 16],
+            nonce: [0; 8],
             digest: [0; 32],
             reply: sender,
         };
@@ -146,7 +146,7 @@ mod tests {
 
         let (req_reply, stamp_recv) = tokio::sync::oneshot::channel();
         sender.send(StampRequest {
-            nonce: [0; 16],
+            nonce: [0; 8],
             digest: [0; 32],
             reply: req_reply,
         }).await;

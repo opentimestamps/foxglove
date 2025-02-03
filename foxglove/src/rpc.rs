@@ -6,6 +6,7 @@ use hyper::http;
 use hyper::body::Bytes;
 use hyper::service::Service;
 use hyper::{Request, Response};
+use http::status::StatusCode;
 
 use crate::aggregator::StampRequest;
 
@@ -38,7 +39,7 @@ async fn do_post_digest(
             match e.downcast::<LengthLimitError>() {
                 Ok(_) => {
                     Ok(Response::builder()
-                                .status(400)
+                                .status(StatusCode::BAD_REQUEST)
                                 .header(http::header::CONTENT_TYPE, "text/plain")
                                 .body(Full::new(Bytes::from("digest too long\n")))
                                 .unwrap())
@@ -63,7 +64,7 @@ async fn serve_http_request(
             Ok(Response::builder()
                         .header(http::header::CONTENT_TYPE, "text/plain")
                         .header(http::header::CACHE_CONTROL, "public, max-age=3600")
-                        .status(404)
+                        .status(StatusCode::NOT_FOUND)
                         .body(Full::new(Bytes::from("Not found\n")))
                         .unwrap())
         }

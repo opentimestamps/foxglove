@@ -147,7 +147,7 @@ mod tests {
         };
         aggregate_requests(vec![req], url).await;
 
-        dbg!(receiver.await.unwrap());
+        receiver.await.unwrap().unwrap();
     }
 
     #[tokio::test]
@@ -156,18 +156,15 @@ mod tests {
 
         let period = std::time::Duration::from_millis(100);
         let (sender, request_mpsc) = tokio::sync::mpsc::channel(128);
-        let task = aggregator_task(request_mpsc, period, url);
+        let _task = aggregator_task(request_mpsc, period, url);
 
-        let (req_reply, stamp_recv) = tokio::sync::oneshot::channel();
+        let (req_reply, _stamp_recv) = tokio::sync::oneshot::channel();
         sender.send(StampRequest {
             nonce: [0; 8],
             digest: [0; 32],
             reply: req_reply,
-        }).await;
+        }).await.unwrap();
 
-        //task.await.unwrap();
-
-        //dbg!(stamp_recv.await.unwrap());
         Ok(())
     }
 }

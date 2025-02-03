@@ -1,17 +1,11 @@
 use std::convert::Infallible;
-use std::net::SocketAddr;
 use std::pin::Pin;
 
 use http_body_util::{Full, Limited, BodyExt, LengthLimitError};
 use hyper::http;
 use hyper::body::Bytes;
-use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper::{Request, Response};
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-
-use reqwest;
 
 use crate::aggregator::StampRequest;
 

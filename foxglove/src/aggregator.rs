@@ -1,11 +1,10 @@
 use std::convert::Infallible;
-use std::sync::Arc;
 
 use bitcoin_hashes::Sha256;
 use rand;
+use reqwest::Url;
 
 use tokio;
-use hyper::Uri;
 
 use crate::trees::{Op, hash_tree};
 
@@ -73,13 +72,13 @@ impl StampRequest {
     }
 }
 
-pub async fn aggregate_requests(requests: Vec<StampRequest>) {
+pub async fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) {
     let digests: Vec<[u8; 32]> = requests.iter().map(|req| req.digest).collect();
 
     let (ops, tip_digest) = hash_tree(&digests);
 
     let client = reqwest::Client::new();
-    let response = client.post("https://a.pool.opentimestamps.org/digest")
+    let response = client.post(upstream_url)
                          .body(Vec::from(tip_digest))
                          .send()
                          .await.unwrap();
@@ -99,7 +98,8 @@ pub async fn aggregate_requests(requests: Vec<StampRequest>) {
 
 pub async fn aggregator_task(
     mut request_mpsc: tokio::sync::mpsc::Receiver<StampRequest>,
-    mut period: tokio::time::Duration,
+    period: tokio::time::Duration,
+    upstream_url: Url,
 ) -> Result<(), Infallible>
 {
     let mut interval = tokio::time::interval(period);
@@ -114,7 +114,7 @@ pub async fn aggregator_task(
 
         println!("got {} requests", requests.len());
         if requests.len() > 0 {
-            let _ = tokio::spawn(aggregate_requests(requests));
+            let _ = tokio::spawn(aggregate_requests(requests, upstream_url.clone()));
         }
     };
 
@@ -127,22 +127,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_aggregate_requests() {
+        let url = Url::parse("https://a.pool.opentimestamps.org/digest").unwrap();
+
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let req = StampRequest {
             nonce: [0; 8],
             digest: [0; 32],
             reply: sender,
         };
-        aggregate_requests(vec![req]).await;
+        aggregate_requests(vec![req], url).await;
 
         dbg!(receiver.await.unwrap());
     }
 
     #[tokio::test]
     async fn test_aggregator() -> Result<(), Box<dyn std::error::Error>> {
+        let url = Url::parse("https://a.pool.opentimestamps.org/digest").unwrap();
+
         let period = std::time::Duration::from_millis(100);
         let (sender, request_mpsc) = tokio::sync::mpsc::channel(128);
-        let task = aggregator_task(request_mpsc, period);
+        let task = aggregator_task(request_mpsc, period, url);
 
         let (req_reply, stamp_recv) = tokio::sync::oneshot::channel();
         sender.send(StampRequest {

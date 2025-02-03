@@ -18,6 +18,9 @@ struct Args {
     #[arg(long, value_parser = parse_duration, default_value = "0.1")]
     period: Duration,
 
+    #[arg(long, default_value = "127.0.0.1:3000")]
+    bind: SocketAddr,
+
     #[arg(value_parser = parse_url)]
     upstream_url: Url,
 }
@@ -40,10 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     tokio::task::spawn(aggregator::aggregator_task(request_receiver, args.period, args.upstream_url));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-
-    // We create a TcpListener and bind it to 127.0.0.1:3000
-    let listener = TcpListener::bind(addr).await?;
+    // We create a TcpListener and bind it
+    let listener = TcpListener::bind(args.bind).await?;
 
     // We start a loop to continuously accept incoming connections
     loop {

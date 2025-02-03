@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use std::fmt;
 
 use bitcoin_hashes::Sha256;
 use rand;
@@ -49,6 +50,15 @@ impl LinearTimestamp {
 
 #[derive(Debug)]
 pub struct StampRequestError {
+}
+
+impl fmt::Display for StampRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "stamp request error")
+    }
+}
+
+impl std::error::Error for StampRequestError {
 }
 
 #[derive(Debug)]
@@ -105,15 +115,15 @@ pub async fn aggregator_task(
     let mut interval = tokio::time::interval(period);
 
     while !request_mpsc.is_closed() {
-        println!("{:?}", interval.tick().await.into_std());
+        interval.tick().await;
 
         let mut requests: Vec<StampRequest> = vec![];
         while let Ok(request) = request_mpsc.try_recv() {
             requests.push(request);
         }
 
-        println!("got {} requests", requests.len());
         if requests.len() > 0 {
+            println!("got {} requests", requests.len());
             let _ = tokio::spawn(aggregate_requests(requests, upstream_url.clone()));
         }
     };

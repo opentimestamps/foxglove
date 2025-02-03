@@ -10,8 +10,25 @@ use http::status::StatusCode;
 
 use crate::aggregator::StampRequest;
 
-async fn do_get_root() -> Result<Response<Full<Bytes>>, Infallible> {
-    Ok(Response::new(Full::new(Bytes::from("Hello, World!\n"))))
+async fn do_get_root(our_name: String, upstream_name: String) -> Result<Response<Full<Bytes>>, Infallible> {
+    let body = format!(
+"<html>
+<head>
+    <title>OpenTimestamps Aggregator</title>
+</head>
+<body>
+This is the <a href=\"https://opentimestamps.org\">OpenTimestamps</a> aggregator {}, aggregating timestamp requests for the upstream calendar server {}
+</body>
+</html>
+",
+        our_name,
+        upstream_name
+    );
+    Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, "text/html")
+                .body(Full::new(Bytes::from(body)))
+                .unwrap())
 }
 
 async fn do_post_digest(
@@ -28,7 +45,7 @@ async fn do_post_digest(
             let digest = digest.to_bytes();
 
             let (req, timestamp_receiver) = StampRequest::new(&digest);
-            req_sender.send(req).await.expect("FIXME: handle error");
+            req_sender.send(req).await?;
 
             let stamp = timestamp_receiver.await?.expect("FIXME: handle stamp request error");
 
@@ -55,10 +72,12 @@ async fn do_post_digest(
 async fn serve_http_request(
     r: Request<hyper::body::Incoming>,
     digest_sender: tokio::sync::mpsc::Sender<StampRequest>,
+    our_name: String,
+    upstream_name: String,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     dbg!(&r);
     match r.uri().path() {
-        "/" => do_get_root().await,
+        "/" => do_get_root(our_name, upstream_name).await,
         "/digest" if r.method() == http::Method::POST => Ok(do_post_digest(r, digest_sender).await.expect("FIXME: handle errors")),
         _ => {
             Ok(Response::builder()
@@ -73,11 +92,16 @@ async fn serve_http_request(
 
 pub struct RPCService {
     request_sender: tokio::sync::mpsc::Sender<StampRequest>,
+    our_name: String,
+    upstream_calendar_name: String,
 }
 
 impl RPCService {
-    pub fn new(request_sender: tokio::sync::mpsc::Sender<StampRequest>) -> Self {
-        Self { request_sender }
+    pub fn new(request_sender: tokio::sync::mpsc::Sender<StampRequest>,
+               our_name: String,
+               upstream_calendar_name: String,
+               ) -> Self {
+        Self { request_sender, our_name, upstream_calendar_name }
     }
 }
 
@@ -87,6 +111,12 @@ impl Service<Request<hyper::body::Incoming>> for RPCService {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + Sync + 'static>>;
 
     fn call(&self, req: Request<hyper::body::Incoming>) -> Self::Future {
-        Box::into_pin(Box::new(serve_http_request(req, self.request_sender.clone())))
+        Box::into_pin(Box::new(
+                serve_http_request(
+                    req,
+                    self.request_sender.clone(),
+                    self.our_name.clone(),
+                    self.upstream_calendar_name.clone(),
+                )))
     }
 }

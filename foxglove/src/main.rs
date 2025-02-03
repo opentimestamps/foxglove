@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::time::Duration;
+use std::num::NonZero;
 
 use clap::Parser;
 
@@ -21,8 +22,19 @@ struct Args {
     #[arg(long, default_value = "127.0.0.1:3000")]
     bind: SocketAddr,
 
+    #[arg(long, default_value = "256")]
+    queue_depth: NonZero<usize>,
+
     #[arg(value_parser = parse_url)]
     upstream_url: Url,
+
+    /// Human readable name for us
+    #[arg(long)]
+    our_name: Option<String>,
+
+    /// Human readable name for the upstream calendar
+    #[arg(long)]
+    upstream_calendar_name: Option<String>,
 }
 
 fn parse_duration(arg: &str) -> Result<Duration, std::num::ParseFloatError> {
@@ -39,15 +51,19 @@ fn parse_url(arg: &str) -> Result<Url, Box<dyn std::error::Error + Send + Sync +
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = Args::parse();
 
-    let (request_sender, request_receiver) = tokio::sync::mpsc::channel(256);
 
-    tokio::task::spawn(aggregator::aggregator_task(request_receiver, args.period, args.upstream_url));
+    let (request_sender, request_receiver) = tokio::sync::mpsc::channel(args.queue_depth.into());
+
+    tokio::task::spawn(aggregator::aggregator_task(request_receiver, args.period, args.upstream_url.clone()));
 
     // We create a TcpListener and bind it
     let listener = TcpListener::bind(args.bind).await?;
 
     // We start a loop to continuously accept incoming connections
     loop {
+        let our_name = args.our_name.clone().unwrap_or(args.bind.to_string());
+        let upstream_calendar_name = args.upstream_calendar_name.clone().unwrap_or(args.upstream_url.to_string());
+
         let (stream, _) = listener.accept().await?;
 
         // Use an adapter to access something implementing `tokio::io` traits as if they implement
@@ -60,7 +76,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             // Finally, we bind the incoming connection to our `hello` service
             if let Err(err) = http1::Builder::new()
                 // `service_fn` converts our function in a `Service`
-                .serve_connection(io, rpc::RPCService::new(request_sender))
+                .serve_connection(io, rpc::RPCService::new(
+                        request_sender,
+                        our_name.clone(),
+                        upstream_calendar_name.clone(),
+                        ))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);

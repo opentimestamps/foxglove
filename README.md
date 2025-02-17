@@ -18,4 +18,4 @@ valid; the steps in the merkle tree are seralized "by hand".
 
 At the moment, Foxglove's basic functionality works and is being experimentally
 used in production on the Alice calendar. But it is quite primitive, without
-logging, proper error handling, tests, etc.
+full error handling, tests, etc.

@@ -50,19 +50,23 @@ async fn do_post_digest(
             let stamp = timestamp_receiver.await?.expect("FIXME: handle stamp request error");
 
             let stamp = stamp.serialize();
-            Ok(Response::new(Full::new(Bytes::from(stamp))))
+            Ok(Response::builder()
+                        .status(StatusCode::OK)
+                        .header(http::header::CONTENT_TYPE, "application/octet-stream")
+                        .body(Full::new(Bytes::from(stamp)))
+                        .unwrap())
         },
         Err(e) => {
             match e.downcast::<LengthLimitError>() {
                 Ok(_) => {
                     Ok(Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
+                                .status(StatusCode::BAD_REQUEST) // should actually be 413 Payload Too Large
                                 .header(http::header::CONTENT_TYPE, "text/plain")
                                 .body(Full::new(Bytes::from("digest too long\n")))
                                 .unwrap())
                 },
                 Err(e) => {
-                    unimplemented!("{:?}", e);
+                    todo!("{:?}", e);
                 }
             }
         },

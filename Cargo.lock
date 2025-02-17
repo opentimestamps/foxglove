@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "foxglove"
-version = "0.1.0"
+version = "0.3.0-dev"
 dependencies = [
  "bitcoin_hashes",
  "clap",

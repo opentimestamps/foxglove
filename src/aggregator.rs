@@ -92,7 +92,7 @@ pub async fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) 
                              .await?;
         if response.status() == StatusCode::OK {
             let proof = response.bytes().await?;
-            log::debug!("got {} bytes of proof from upstream calendar", proof.len());
+            log::debug!("got {} bytes of proof from upstream", proof.len());
             Ok(proof)
         } else {
             Err(StampRequestError::BadStatus(response.status()))

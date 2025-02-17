@@ -51,7 +51,7 @@ async fn do_post_digest(
                     let stamp = stamp.serialize();
                     Ok(Response::builder()
                                 .status(StatusCode::OK)
-                                .header(http::header::CONTENT_TYPE, "application/octet-stream")
+                                .header(http::header::CONTENT_TYPE, "application/vnd.opentimestamps.v1")
                                 .body(Full::new(Bytes::from(stamp)))
                                 .unwrap())
                 },

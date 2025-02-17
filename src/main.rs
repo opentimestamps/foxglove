@@ -49,8 +49,9 @@ fn parse_url(arg: &str) -> Result<Url, Box<dyn std::error::Error + Send + Sync +
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let args = Args::parse();
+    env_logger::init();
 
+    let args = Args::parse();
 
     let (request_sender, request_receiver) = tokio::sync::mpsc::channel(args.queue_depth.into());
 
@@ -58,6 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // We create a TcpListener and bind it
     let listener = TcpListener::bind(args.bind).await?;
+
+    log::info!("listening on {}", args.bind);
 
     // We start a loop to continuously accept incoming connections
     loop {
@@ -83,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         ))
                 .await
             {
-                eprintln!("Error serving connection: {:?}", err);
+                log::error!("Error serving connection: {:?}", err);
             }
         });
     }

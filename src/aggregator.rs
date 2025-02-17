@@ -1,9 +1,9 @@
 use std::convert::Infallible;
-use std::fmt;
+use std::sync::Arc;
 
 use bitcoin_hashes::Sha256;
 use rand;
-use reqwest::Url;
+use reqwest::{StatusCode, Url};
 
 use tokio;
 
@@ -48,28 +48,24 @@ impl LinearTimestamp {
     }
 }
 
-#[derive(Debug)]
-pub struct StampRequestError {
-}
+#[derive(Debug, thiserror::Error)]
+pub enum StampRequestError {
+    #[error("upstream aggregator failed: {0}")]
+    Upstream(#[from] reqwest::Error),
 
-impl fmt::Display for StampRequestError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "stamp request error")
-    }
-}
-
-impl std::error::Error for StampRequestError {
+    #[error("upstream aggregator returned bad status code: {0}")]
+    BadStatus(StatusCode)
 }
 
 #[derive(Debug)]
 pub struct StampRequest {
     nonce: [u8; 8],
     digest: [u8; 32],
-    reply: tokio::sync::oneshot::Sender<Result<LinearTimestamp, StampRequestError>>,
+    reply: tokio::sync::oneshot::Sender<Result<LinearTimestamp, Arc<StampRequestError>>>,
 }
 
 impl StampRequest {
-    pub fn new(digest: &[u8]) -> (Self, tokio::sync::oneshot::Receiver<Result<LinearTimestamp, StampRequestError>>) {
+    pub fn new(digest: &[u8]) -> (Self, tokio::sync::oneshot::Receiver<Result<LinearTimestamp, Arc<StampRequestError>>>) {
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
         let nonce: [u8; 8] = rand::random();
@@ -88,21 +84,38 @@ pub async fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) 
     let (ops, tip_digest) = hash_tree(&digests);
 
     let client = reqwest::Client::new();
-    let response = client.post(upstream_url)
-                         .body(Vec::from(tip_digest))
-                         .send()
-                         .await.unwrap();
 
-    let proof = response.bytes().await.unwrap();
+    match (async || -> Result<_, StampRequestError> {
+        let response = client.post(upstream_url)
+                             .body(Vec::from(tip_digest))
+                             .send()
+                             .await?;
+        if response.status() == StatusCode::OK {
+            let proof = response.bytes().await?;
+            log::debug!("got {} bytes of proof from upstream calendar", proof.len());
+            Ok(proof)
+        } else {
+            Err(StampRequestError::BadStatus(response.status()))
+        }
+    })().await {
+        Ok(proof) => {
+            for (request, ops) in requests.into_iter().zip(ops.into_iter()) {
+                let stamp = LinearTimestamp {
+                    nonce: request.nonce,
+                    ops,
+                    proof: proof.clone().into(),
+                };
 
-    for (request, ops) in requests.into_iter().zip(ops.into_iter()) {
-        let stamp = LinearTimestamp {
-            nonce: request.nonce,
-            ops,
-            proof: proof.clone().into(),
-        };
-
-        let _ = request.reply.send(Ok(stamp));
+                let _ = request.reply.send(Ok(stamp));
+            }
+        }
+        Err(err) => {
+            log::error!("{}", &err);
+            let err = Arc::new(err);
+            for request in requests.into_iter() {
+                let _ = request.reply.send(Err(Arc::clone(&err)));
+            }
+        },
     }
 }
 
@@ -123,7 +136,7 @@ pub async fn aggregator_task(
         }
 
         if requests.len() > 0 {
-            println!("got {} requests", requests.len());
+            log::info!("got {} requests", requests.len());
             let _ = tokio::spawn(aggregate_requests(requests, upstream_url.clone()));
         }
     };

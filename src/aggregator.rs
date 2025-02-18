@@ -92,7 +92,7 @@ pub fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) {
                              .send()?;
         if response.status() == StatusCode::OK {
             let proof = response.bytes()?;
-            log::info!("got {} bytes of proof from upstream", proof.len());
+            log::debug!("got {} bytes of proof from upstream", proof.len());
             Ok(proof)
         } else {
             Err(StampRequestError::BadStatus(response.status()))

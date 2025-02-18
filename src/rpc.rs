@@ -35,7 +35,7 @@ fn do_get_favicon() -> Response<Full<Bytes>> {
     Response::builder()
              .status(StatusCode::OK)
              .header(http::header::CONTENT_TYPE, "image/vnd.microsoft.icon")
-             .body(Full::new(Bytes::from(&include_bytes!("favicon.ico")[..])))
+             .body(Full::new(Bytes::from_static(include_bytes!("favicon.ico"))))
              .unwrap()
 }
 

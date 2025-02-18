@@ -1,3 +1,5 @@
+#![feature(error_reporter)]
+
 use std::net::SocketAddr;
 use std::time::Duration;
 use std::num::NonZero;
@@ -86,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         ))
                 .await
             {
-                log::error!("Error serving connection: {:?}", err);
+                log::error!("Error serving connection: {}", std::error::Report::new(err).pretty(true));
             }
         });
     }

@@ -78,26 +78,26 @@ impl StampRequest {
     }
 }
 
-pub async fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) {
+pub fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) {
     let digests: Vec<[u8; 32]> = requests.iter().map(|req| req.digest).collect();
 
     let (ops, tip_digest) = hash_tree(&digests);
 
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
 
-    match (async || -> Result<_, StampRequestError> {
+    match (|| -> Result<_, StampRequestError> {
         let response = client.post(upstream_url)
                              .body(Vec::from(tip_digest))
-                             .send()
-                             .await?;
+                             .timeout(std::time::Duration::from_secs(2))
+                             .send()?;
         if response.status() == StatusCode::OK {
-            let proof = response.bytes().await?;
-            log::debug!("got {} bytes of proof from upstream", proof.len());
+            let proof = response.bytes()?;
+            log::info!("got {} bytes of proof from upstream", proof.len());
             Ok(proof)
         } else {
             Err(StampRequestError::BadStatus(response.status()))
         }
-    })().await {
+    })() {
         Ok(proof) => {
             for (request, ops) in requests.into_iter().zip(ops.into_iter()) {
                 let stamp = LinearTimestamp {
@@ -110,7 +110,7 @@ pub async fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) 
             }
         }
         Err(err) => {
-            log::error!("{}", &err);
+            log::error!("{}", std::error::Report::new(&err).pretty(true));
             let err = Arc::new(err);
             for request in requests.into_iter() {
                 let _ = request.reply.send(Err(Arc::clone(&err)));
@@ -137,7 +137,8 @@ pub async fn aggregator_task(
 
         if requests.len() > 0 {
             log::info!("got {} requests", requests.len());
-            let _ = tokio::spawn(aggregate_requests(requests, upstream_url.clone()));
+            let upstream_url = upstream_url.clone();
+            let _ = tokio::task::spawn_blocking(move || aggregate_requests(requests, upstream_url));
         }
     };
 

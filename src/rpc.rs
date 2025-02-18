@@ -14,6 +14,7 @@ fn do_get_root(our_name: String, upstream_name: String) -> Response<Full<Bytes>>
 "<html>
 <head>
     <title>OpenTimestamps Aggregator</title>
+    <link rel=\"icon\" type=\"image/x-icon\" href=\"/favicon.ico\">
 </head>
 <body>
 This is the <a href=\"https://opentimestamps.org\">OpenTimestamps</a> aggregator {}, aggregating timestamp requests for the upstream calendar server {}
@@ -27,6 +28,14 @@ This is the <a href=\"https://opentimestamps.org\">OpenTimestamps</a> aggregator
              .status(StatusCode::OK)
              .header(http::header::CONTENT_TYPE, "text/html")
              .body(Full::new(Bytes::from(body)))
+             .unwrap()
+}
+
+fn do_get_favicon() -> Response<Full<Bytes>> {
+    Response::builder()
+             .status(StatusCode::OK)
+             .header(http::header::CONTENT_TYPE, "image/vnd.microsoft.icon")
+             .body(Full::new(Bytes::from(&include_bytes!("favicon.ico")[..])))
              .unwrap()
 }
 
@@ -91,6 +100,7 @@ async fn serve_http_request(
     log::debug!("{:?}", r);
     match r.uri().path() {
         "/" => Ok(do_get_root(our_name, upstream_name)),
+        "/favicon.ico" => Ok(do_get_favicon()),
         "/digest" if r.method() == http::Method::POST => Ok(do_post_digest(r, digest_sender).await?),
         _ => {
             Ok(Response::builder()

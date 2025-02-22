@@ -98,11 +98,11 @@ async fn serve_http_request(
     upstream_name: String,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     log::debug!("{:?}", r);
-    match r.uri().path() {
-        "/" => Ok(do_get_root(our_name, upstream_name)),
-        "/favicon.ico" => Ok(do_get_favicon()),
-        "/digest" if r.method() == http::Method::POST => Ok(do_post_digest(r, digest_sender).await?),
-        _ => {
+    match (r.method(), r.uri().path()) {
+        (&http::Method::GET,  "/")            => Ok(do_get_root(our_name, upstream_name)),
+        (&http::Method::GET,  "/favicon.ico") => Ok(do_get_favicon()),
+        (&http::Method::POST, "/digest")      => Ok(do_post_digest(r, digest_sender).await?),
+        _ => { // FIXME: distinguish methods being invalid (GET-vs-POST) and not found
             Ok(Response::builder()
                         .header(http::header::CONTENT_TYPE, "text/plain")
                         .header(http::header::CACHE_CONTROL, "public, max-age=3600")

@@ -17,6 +17,7 @@ mod rpc;
 mod trees;
 
 #[derive(Parser, Debug)]
+#[clap(version)]
 struct Args {
     #[arg(long, value_parser = parse_duration, default_value = "0.1")]
     period: Duration,

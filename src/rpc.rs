@@ -10,6 +10,7 @@ use http::status::StatusCode;
 use crate::aggregator::StampRequest;
 
 fn do_get_root(our_name: String, upstream_name: String) -> Response<Full<Bytes>> {
+    let our_version = env!("CARGO_PKG_VERSION");
     let body = format!(
 "<html>
 <head>
@@ -17,13 +18,13 @@ fn do_get_root(our_name: String, upstream_name: String) -> Response<Full<Bytes>>
     <link rel=\"icon\" type=\"image/x-icon\" href=\"/favicon.ico\">
 </head>
 <body>
-This is the <a href=\"https://opentimestamps.org\">OpenTimestamps</a> aggregator {}, aggregating timestamp requests for the upstream calendar server {}
+<p>This is the <a href=\"https://github.com/opentimestamps/foxglove\">Foxglove</a> (v{our_version})
+<a href=\"https://opentimestamps.org\">OpenTimestamps</a> aggregator {our_name}, aggregating timestamp
+requests for the upstream calendar server <a href=\"{upstream_name}\">{upstream_name}</a>.</p>
 </body>
 </html>
-",
-        our_name,
-        upstream_name
-    );
+");
+
     Response::builder()
              .status(StatusCode::OK)
              .header(http::header::CONTENT_TYPE, "text/html")

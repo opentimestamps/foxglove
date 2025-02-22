@@ -87,6 +87,7 @@ pub fn aggregate_requests(requests: Vec<StampRequest>, upstream_url: Url) {
 
     match (|| -> Result<_, StampRequestError> {
         let response = client.post(upstream_url)
+                             .header("User-Agent", concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION")))
                              .body(Vec::from(tip_digest))
                              .timeout(std::time::Duration::from_secs(2))
                              .send()?;

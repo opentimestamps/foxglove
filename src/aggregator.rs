@@ -160,7 +160,8 @@ mod tests {
             digest: [0; 32],
             reply: sender,
         };
-        aggregate_requests(vec![req], url).await;
+
+        let _ = tokio::task::spawn_blocking(move || aggregate_requests(vec![req], url));
 
         receiver.await.unwrap().unwrap();
     }

@@ -16,6 +16,9 @@ valid; the steps in the merkle tree are seralized "by hand".
 
 # Status
 
-At the moment, Foxglove's basic functionality works and is being experimentally
-used in production on the Alice calendar. But it is quite primitive, without
-full error handling, tests, etc.
+At the moment, Foxglove's basic functionality works and is being used in
+production on the [a](https://a.pool.opentimestamps.org) and
+[b](https://b.pool.opentimestamps.org) aggregators for the
+[Alice](https://alice.btc.calendar.opentimestamps.org) and
+[Bob](https://bob.btc.calendar.opentimestamps.org) calendars. But it is quite
+primitive, without full error handling, tests, etc.

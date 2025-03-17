@@ -79,9 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Spawn a tokio task to serve multiple connections concurrently
         let request_sender = request_sender.clone();
         tokio::task::spawn(async move {
-            // Finally, we bind the incoming connection to our `hello` service
+            // Finally, we bind the incoming connection to our RPC service
             if let Err(err) = http1::Builder::new()
-                // `service_fn` converts our function in a `Service`
                 .serve_connection(io, rpc::RPCService::new(
                         request_sender,
                         our_name.clone(),
